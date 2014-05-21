@@ -1,0 +1,403 @@
+<?php defined('SYSPATH') or die('No direct script access.');
+
+class Controller_Panel_Product extends Auth_Crud {
+
+	/**
+	 * @var $_index_fields ORM fields shown in index
+	 */
+	protected $_index_fields = array('title','status');
+
+	/**
+	 * @var $_orm_model ORM model name
+	 */
+	protected $_orm_model = 'product';
+
+    /**
+     *
+     * list of possible actions for the crud, you can modify it to allow access or deny, by default all
+     * @var array
+     */
+    public $crud_actions = array('create','update');
+
+    /**
+     *
+     * Loads a basic list info
+     * @param string $view template to render 
+     */
+    public function action_index($view = NULL)
+    {
+        parent::action_index('oc-panel/pages/products/index');
+    }    
+
+	/**
+     * overwrites the default crud index
+     * @param  string $view nothing since we don't use it
+     * @return void      
+     */
+    public function action_create()
+    {
+        //template header
+        $this->template->title  = __('New Product');
+
+        Breadcrumbs::add(Breadcrumb::factory()->set_title(__('New Product')));
+        $this->template->styles              = array('css/sortable.css' => 'screen',
+        											 'http://cdn.jsdelivr.net/bootstrap.datepicker/0.1/css/datepicker.css' => 'screen',
+                                                     'http://cdn.jsdelivr.net/jquery.fileupload/9.5.2/css/jquery.fileupload.css'=>'screen',
+                                                     'css/jasny-bootstrap.min.css'=>'screen',
+                                                     );
+        $this->template->scripts['footer'] = array('http://cdn.jsdelivr.net/bootstrap.datepicker/0.1/js/bootstrap-datepicker.js',
+                                                    'js/jasny-bootstrap.min.js',
+        											 'js/oc-panel/products.js',
+        											 'js/jquery-sortable-min.js',
+                                                     'http://cdn.jsdelivr.net/jquery.fileupload/9.5.2/js/vendor/jquery.ui.widget.js',
+                                                     'http://cdn.jsdelivr.net/jquery.fileupload/9.5.2/js/jquery.iframe-transport.js',
+                                                     'http://cdn.jsdelivr.net/jquery.fileupload/9.5.2/js/jquery.fileupload.js',
+                                                     );											 
+        											 
+
+        list($cats,$order_cat)  = Model_Category::get_all();
+        list($locs,$order_loc)  = Model_Location::get_all();
+
+        if(count($cats) <= 1)
+        {
+            Alert::set(Alert::WARNING, __('Please create a category first!'));
+            $this->request->redirect(Route::url('oc-panel', array('controller'=>'product','action'=>'index')));
+        }
+
+        $obj_product = new Model_Product();
+
+        // get currencies from product, returns array
+        $currency = $obj_product::get_currency(); 
+
+        $this->template->content = View::factory('oc-panel/pages/products/create',array('categories'		=>$cats,
+        																				'order_categories' 	=>$order_cat,
+                                                                                        'locations'         =>$locs,
+                                                                                        'order_locations'   =>$order_loc,
+        																				'currency'			=>$currency));
+
+        if($product = $this->request->post())
+        {
+
+        	$id_user = Auth::instance()->get_user()->id_user;
+        	
+        	// set custom values from POST
+        	foreach ($product as $field => $value) 
+        	{   
+        		if($field != 'submit')
+        			$obj_product->$field = $value;
+        	}
+        	$seotitle = $obj_product->gen_seotitle($product['title']);
+        	
+            // set non POST values
+        	$obj_product->id_user      = $id_user;
+        	$obj_product->seotitle     = $seotitle;
+        	$obj_product->status       = (core::post('status')===NULL)?Model_Product::STATUS_NOACTIVE:Model_Product::STATUS_ACTIVE;
+            $obj_product->updated      = Date::unix2mysql();
+            $obj_product->offer_valid  = (core::post('offer_valid')!=NULL)? core::post('offer_valid').' 23:59:59' : NULL;
+            $obj_product->featured     = (core::post('featured')!=NULL)? core::post('featured').' 23:59:59'  : NULL;
+
+            if($file = $product['confirm_file'])
+                $obj_product->confirm_file = $file;
+        	
+            // save product or trow exeption
+        	try 
+        	{
+        		$obj_product->save();
+        		Alert::set(Alert::SUCCESS, __('Product is created.'));
+                if (Core::config('sitemap.on_post') == TRUE)
+                    Sitemap::generate();
+        	} 
+        	catch (Exception $e) 
+        	{
+        		throw new HTTP_Exception_500($e->getMessage());
+        	}
+
+        	// save images
+        	if(isset($_FILES))
+        	{
+        		foreach ($_FILES as $confirm_file => $file) 
+        		{  
+                    if($confirm_file != 'confirm_file')
+        			    echo $file = $obj_product->save_image($file);
+        		}
+        	}
+
+        	$this->request->redirect(Route::url('oc-panel', array('controller'=>'product','action'=>'index')));  	
+        }
+
+    }
+
+
+    public function action_update()
+    {
+        //template header
+        $this->template->title  = __('Edit Product');
+
+        Breadcrumbs::add(Breadcrumb::factory()->set_title(__('Edit Product')));
+        $this->template->styles              = array('css/sortable.css' => 'screen',
+                                                     'http://cdn.jsdelivr.net/bootstrap.datepicker/0.1/css/datepicker.css' => 'screen',
+                                                     'http://cdn.jsdelivr.net/jquery.fileupload/9.5.2/css/jquery.fileupload.css'=>'screen',
+                                                     'css/jasny-bootstrap.min.css'=>'screen');
+        $this->template->scripts['footer'] = array('http://cdn.jsdelivr.net/bootstrap.datepicker/0.1/js/bootstrap-datepicker.js',
+                                                    'js/jasny-bootstrap.min.js',
+                                                     'js/oc-panel/products.js',
+                                                     'js/jquery-sortable-min.js',
+                                                     'http://cdn.jsdelivr.net/jquery.fileupload/9.5.2/js/vendor/jquery.ui.widget.js',
+                                                     'http://cdn.jsdelivr.net/jquery.fileupload/9.5.2/js/jquery.iframe-transport.js',
+                                                     'http://cdn.jsdelivr.net/jquery.fileupload/9.5.2/js/jquery.fileupload.js',
+                                                     );
+                                                     
+                                                     
+
+        list($cats,$order)  = Model_Category::get_all();
+
+        $obj_product = new Model_Product($this->request->param('id'));
+
+        if($obj_product->loaded())
+        {
+            // get currencies from product, returns array
+            $currency = $obj_product::get_currency(); 
+
+            $this->template->content = View::factory('oc-panel/pages/products/update',array('product'           =>$obj_product,
+                                                                                            'categories'        =>$cats,
+                                                                                            'order_categories'  =>$order,
+                                                                                            'currency'          =>$currency));
+            
+            if($product = $this->request->post())
+            {
+                // save product file
+                if(isset($_FILES['confirm_file']))
+                {    
+                    if($file = $_FILES['confirm_file'])
+                    {
+                        $file = $obj_product->save_product($file);
+                        if($file != FALSE)
+                            $obj_product->confirm_file = $file;
+                        else
+                            Alert::set(Alert::INFO, __('Product is not uploaded.'));
+                    }
+                }
+
+                // deleting single image by path 
+                $deleted_image = core::post('img_delete');
+                if($deleted_image)
+                {
+                    $img_path = $obj_product->gen_img_path($obj_product->id_product, $obj_product->created);
+
+                    if (!is_dir($img_path)) 
+                    {
+                        return FALSE;
+                    }
+                    else
+                    {   
+                    
+                        //delete formated image
+                        unlink($img_path.$deleted_image.'.jpg');
+
+                        //delete original image
+                        $orig_img = str_replace('thumb_', '', $deleted_image);
+                        unlink($img_path.$orig_img.".jpg");
+
+                        $this->request->redirect(Route::url('oc-panel', array('controller'  =>'product',
+                                                                              'action'      =>'update',
+                                                                              'id'          =>$obj_product->id_product)));
+                    }
+                }// end of img delete
+
+                //delete product file
+                $product_delete = core::post('product_delete');
+                if($product_delete)
+                {
+                    $p_path = $obj_product->get_file($obj_product->confirm_file);
+                    if (!is_file($p_path)) 
+                    {
+                        return FALSE;
+                    }
+                    else
+                    {   
+                        @chmod($p_path, 0755);
+                        //delete product
+                        unlink($p_path);
+
+                        $obj_product->confirm_file = '';
+                        $obj_product->save();
+
+                        $this->request->redirect(Route::url('oc-panel', array('controller'  =>'product',
+                                                                              'action'      =>'update',
+                                                                              'id'          =>$obj_product->id_product)));
+                    }
+                }
+                
+                $product['status']  = (!isset($_POST['status']) OR core::post('status')===NULL)?Model_Product::STATUS_NOACTIVE:Model_Product::STATUS_ACTIVE;
+                $product['updated'] = Date::unix2mysql();
+                //we do this so we assure use the entire day , nasty
+                $product['offer_valid'] .= ' 23:59:59';
+                $product['featured'] .= ' 23:59:59';
+
+                // each field in edit product
+                foreach ($product as $field => $value) 
+                {
+                    // do not include submit
+                    if($field != 'submit' AND $field != 'notify')
+                    {
+                        // check if its different, and set it is
+                        if($value != $obj_product->$field)
+                        {
+                            $obj_product->$field = $value;
+                            // if title is changed, make new seotitle
+                            if($field == 'title')
+                            {
+                                $seotitle = $obj_product->gen_seotitle($product['title']);
+                                $obj_product->seotitle = $seotitle;
+                            }
+                        }
+                    }
+                }
+                // save product or trow exeption
+                try 
+                {
+                    $obj_product->save();
+                    Alert::set(Alert::SUCCESS, __('Product saved.'));
+                    Sitemap::generate();
+
+                    //notify users of new update
+                    if($this->request->post('notify'))
+                    {
+                        //get users with that product
+                        $query = DB::select('email')->select('name')
+                            ->from(array('users', 'u'))
+                            ->join(array('orders', 'o'),'INNER')
+                            ->on('u.id_user','=','o.id_user')
+                            ->where('u.status','=',Model_User::STATUS_ACTIVE)
+                            ->where('o.status', '=', Model_Order::STATUS_PAID)
+                            ->where('o.id_product', '=', $obj_product->id_product)
+                            ->execute();
+                            
+                        $users = $query->as_array();
+                        if (count($users)>0)
+                        { 
+                            //download link
+                            $download = '';
+                            if ($obj_product->has_file()==TRUE)
+                                $download = '\n\n==== '.__('Download').' ====\n'.Route::url('oc-panel', array('controller'  =>'profile','action'=>'orders'));
+                            
+                            //theres an expire? 0 = unlimited
+                            $expire = '';
+                            $expire_hours = Core::config('product.download_hours');
+                            $expire_times = Core::config('product.download_times');
+                            if ($expire_hours > 0 OR $expire_times > 0)
+                            {
+                                if ($expire_hours > 0 AND $expire_times > 0)
+                                    $expire = sprintf(__('Your download expires in %u hours and can be downloaded %u times.'),$expire_hours,$expire_times);
+                                elseif ($expire_hours > 0)
+                                    $expire = sprintf(__('Your download expires in %u hours.'),$expire_hours);
+                                elseif ( $expire_times > 0)
+                                    $expire = sprintf(__('Can be downloaded %u times.'),$expire_times);
+
+                                $expire = '\n'.$expire;
+                            }
+
+
+                            if ( !Email::content($users, '', NULL, NULL, 'product.update', 
+                                                        array('[TITLE]'         => $obj_product->title,
+                                                              '[URL.PRODUCT]'   => Route::url('product', array('seotitle'=>$obj_product->seotitle,'category'=>$obj_product->category->seoname)),
+                                                              '[DOWNLOAD]'      => $download,
+                                                              '[EXPIRE]'        => $expire,
+                                                              '[VERSION]'       => $obj_product->version)))
+                                Alert::set(Alert::ERROR,__('Error on mail delivery, not sent'));
+                            else 
+                                Alert::set(Alert::SUCCESS,__('Email sent to all the users'));
+                        }
+                        else
+                        {
+                            Alert::set(Alert::ERROR,__('Mail not sent'));
+                        }
+                    }
+
+                } 
+                catch (Exception $e) 
+                {
+                    throw new HTTP_Exception_500($e->getMessage());
+                }
+
+                // save images
+                if(isset($_FILES))
+                {
+                    foreach ($_FILES as $confirm_file => $file) 
+                    {  
+                        if($confirm_file != 'confirm_file')
+                            echo $file = $obj_product->save_image($file);
+                    }
+                }
+            }
+        }
+    }
+
+    public function action_upload()
+    {   
+
+        try 
+        {
+            if($file = $_FILES['fileupload'])
+            {
+                $obj_product = new Model_Product();
+                $file = $obj_product->save_product($file);
+                if($file !== FALSE)
+                    echo $file;
+                // else 
+                    // echo false; 
+            }
+            exit();
+        } 
+        catch (Exception $e) 
+        {
+            // echo 'error';
+            exit();
+        }
+        
+    }
+    public function action_delete_file()
+    {
+        //delete product file
+        
+            $confirm_file = $_POST['confirm_file'];
+            $obj_product = new Model_Product();
+            $p_path = $obj_product->get_file($confirm_file); 
+            
+            if (!is_file($p_path)) 
+            {
+                echo $p_path;
+                // echo $p_path;
+                exit();
+            }
+            else
+            {
+                chmod($p_path, 0775);
+                //delete product
+                unlink($p_path);
+            }        
+        // $product_delete = core::post('product_delete');
+        // if($product_delete)
+        // {
+        //     $p_path = $obj_product->get_file($obj_product->confirm_file);
+        //     if (!is_file($p_path)) 
+        //     {
+        //         return FALSE;
+        //     }
+        //     else
+        //     {   
+        //         chmod($p_path, 0775);
+        //         //delete product
+        //         unlink($p_path);
+
+        //         $obj_product->confirm_file = '';
+        //         $obj_product->save();
+
+        //         $this->request->redirect(Route::url('oc-panel', array('controller'  =>'product',
+        //                                                               'action'      =>'update',
+        //                                                               'id'          =>$obj_product->id_product)));
+        //     }
+        // }
+    }
+
+}

@@ -1,0 +1,5 @@
+.subnav .nav > li > a{border: none;}
+.subnav .nav > li:first-child > a, .subnav .nav > li:first-child > a:hover{border-left: none;}
+.nav-pills .open .dropdown-toggle{background-color: #000;}
+.subnav .nav > li > a:hover{background-color: #000; color:#fff;}
+.badge{border-radius: 0px;}

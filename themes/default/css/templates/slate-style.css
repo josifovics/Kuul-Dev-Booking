@@ -1,0 +1,4 @@
+
+.subnav{border:none;}
+.subnav .nav > li > a{border: none;}
+.subnav .nav > li:first-child > a, .subnav .nav > li:first-child > a:hover{border-left: none;}

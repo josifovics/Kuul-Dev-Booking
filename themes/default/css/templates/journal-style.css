@@ -1,0 +1,5 @@
+.subnav{min-height: 50px;}
+.subnav-fixed{top:57px;}
+a{color: #000;text-decoration: none;}
+.subnav .nav > li > a{border: none;}
+.subnav .nav > li:first-child > a, .subnav .nav > li:first-child > a:hover{border-left: none;}

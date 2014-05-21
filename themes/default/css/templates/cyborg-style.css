@@ -1,0 +1,12 @@
+.glyphicon,label, small,cite,td,p,a{color:#fff!important;}
+a:hover{color:#888;}
+.subnav{background-color: #000;border: #000;}
+.subnav .nav > li > a{border: none;}
+.subnav .nav > li:first-child > a, .subnav .nav > li:first-child > a:hover{border-left: none;}
+.navbar .nav>li>a:hover, .navbar .nav>.active>a, .navbar .nav>.active>a:hover{border-bottom: 1px solid #33b5e5;background-color: #000;}
+.btn-inverse{color: #fff;
+background-color: #9f3fcf;
+border-color: #6b248f;}
+.btn-inverse:hover{background-color: #6b248f;}
+.highlight{background-color: #000!important;}
+

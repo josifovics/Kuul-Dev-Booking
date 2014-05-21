@@ -1,0 +1,16 @@
+body {
+
+}
+
+.centered-box {
+max-width: 600px !important;
+margin: 0 auto 20px;
+background-color: #4e5d6c;
+text-align: center;
+}
+
+.button-space{ margin-top: 30px;margin-left: 20%; margin-right: 20%;}
+.pay-btn{ float:left; padding: 10px; font-size: 19px; margin-right: 10px;}
+/*.mini-info li{}*/
+h2{text-align: center;}
+.thumbnail{border: none;}

@@ -1,0 +1,5 @@
+.btn-header-group{padding-top:0px}
+.subnav{background-color: inherit;border: none;box-shadow: none;}
+.subnav .nav > li:first-child > a, .subnav .nav > li:first-child > a:hover{border:none;}
+.subnav .nav > li > a{border:none;}
+.subnav-fixed{top:40px;}
